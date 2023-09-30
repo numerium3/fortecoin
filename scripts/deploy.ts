@@ -67,21 +67,14 @@ async function deployWithDeployer(name: string, salt: bigint, options?: {constru
 
 async function main() {
 
-  const [account] = await ethers.getSigners();
-  
-  console.log(account.address);
-  
-  /*const admin = account.address;
+  const admin = '0xCb9DE6baeD7357A768E81a82EF833f5628BEdb04'; //Goerli safe;
 
-  const salt = 0x7b85ea53ebe02abec4e54bd655390aeeaad8a51e43ce2e8ec25fc4f02c17f04an;
+  const salt = 0x7b859196cddeeb5dd4ef169ec53788d2e283891e43ce2e8ec25fc4f02c17f04an;
 
   const proxyAdminAddress = await deployWithDeployer('OwnedProxyAdmin', salt, { constructorArguments: {types: ["address"], values: [admin] }});
 
   const stablecoinAddress = await deployWithDeployer('Stablecoin', salt, { constructorArguments: {types: [], values: []} });
   const stablecoinProxyAddress = await deployWithDeployer('StablecoinProxy', salt, { constructorArguments: {types: ["address", "address", "address"], values: [stablecoinAddress, proxyAdminAddress, admin]} });
-
-  const minterAddress = await deployWithDeployer('Minter', salt, { constructorArguments: {types: [], values: []} });
-  const minterProxyAddress = await deployWithDeployer('MinterProxy', salt, { constructorArguments: {types: ["address", "address", "address", "address"], values: [minterAddress, proxyAdminAddress, admin, stablecoinProxyAddress]} });
 
   const walletAddress = await deployWithDeployer('Wallet', salt, { constructorArguments: {types: [], values: []} });
   const walletProxyAddress = await deployWithDeployer('WalletProxy', salt, { constructorArguments: {types: ["address", "address", "address", "address"], values: [walletAddress, proxyAdminAddress, admin, stablecoinProxyAddress]} });
@@ -89,15 +82,11 @@ async function main() {
   console.log(`OwnedProxyAdmin deployed to ${proxyAdminAddress}`);
   console.log(`Stablecoin deployed to ${stablecoinAddress}`);
   console.log(`StablecoinProxy deployed to ${stablecoinProxyAddress}`);
-  console.log(`Minter deployed to ${minterAddress}`);
-  console.log(`MinterProxy deployed to ${minterProxyAddress}`);
   console.log(`Wallet deployed to ${walletAddress}`);
-  console.log(`WalletProxy deployed to ${walletProxyAddress}`);*/
+  console.log(`WalletProxy deployed to ${walletProxyAddress}`);
 
 }
 
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
 main().catch((error) => {
   console.error(error);
   process.exitCode = 1;

@@ -6,7 +6,7 @@ import { TransferStructOutput } from "../typechain-types/contracts/Wallet";
 
 describe("Wallet", function () {
   async function initialize() {
-    const [deployer, admin, user, beneficiary1, beneficiary2, other] = await ethers.getSigners();
+    const [deployer, admin, minter, user, beneficiary1, beneficiary2, other] = await ethers.getSigners();
 
     const ProxyAdmin = await ethers.getContractFactory("OwnedProxyAdmin");
     const proxyAdmin = await ProxyAdmin.deploy(admin);
@@ -23,15 +23,33 @@ describe("Wallet", function () {
     const WalletProxy = await ethers.getContractFactory("WalletProxy");
     const walletProxy = await Wallet.attach(await WalletProxy.deploy(wallet, proxyAdmin, admin, stablecoinProxy)) as Wallet;
     
-    await stablecoinProxy.connect(admin).mint(walletProxy, 10000);
     await walletProxy.connect(admin).grantRole(await walletProxy.USER_ROLE(), user);
-
-    return { wallet, walletProxy, stablecoin, stablecoinProxy, deployer, admin, user, beneficiary: beneficiary1, beneficiary1, beneficiary2, other };
+    await walletProxy.connect(admin).grantRole(await walletProxy.MINTER_ROLE(), minter);
+    await stablecoinProxy.connect(admin)["mint(address,uint256)"](walletProxy, 10000);
+    await stablecoinProxy.connect(admin).grantRole(await stablecoinProxy.MINTER_ROLE(), walletProxy);
+    
+    return { wallet, walletProxy, stablecoin, stablecoinProxy, deployer, admin, minter, user, beneficiary: beneficiary1, beneficiary1, beneficiary2, other };
   }
 
+  it('non-granted minter cannot mint or burn', async function () {
+    const { deployer, walletProxy, user, other } = await initialize();
+    for (const account of [user, other, deployer]) {
+      await expect(walletProxy.connect(account).mint(1000)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6`);
+      await expect(walletProxy.connect(account).burn(1000)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6`);
+    }
+  });
+
+  it('granted minter can mint and burn', async function () {
+    const { stablecoinProxy, walletProxy, minter } = await initialize();
+    await walletProxy.connect(minter).mint(1000);
+    expect(await stablecoinProxy.balanceOf(walletProxy)).to.equal(11000);
+    await walletProxy.connect(minter).burn(200);
+    expect(await stablecoinProxy.balanceOf(walletProxy)).to.equal(10800);
+  });
+
   it('non-granted user cannot transfer', async function () {
-    const { deployer, walletProxy, beneficiary1, beneficiary2, other } = await initialize();
-    for (const account of [other, deployer]) {
+    const { deployer, walletProxy, minter, beneficiary1, beneficiary2, other } = await initialize();
+    for (const account of [minter, other, deployer]) {
       for (const beneficiary of [other, beneficiary1, beneficiary2]) {
         await expect(walletProxy.connect(account)["transfer(address,uint256)"](beneficiary, 1000)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0x14823911f2da1b49f045a0929a60b8c1f2a7fc8c06c7284ca3e8ab4e193a08c8`);
       }
