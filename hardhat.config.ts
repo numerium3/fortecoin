@@ -7,7 +7,7 @@ dotenv.config();
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.8.21",
+    version: "0.8.19",
     settings: {
       optimizer: {
         enabled: true,
@@ -16,6 +16,14 @@ const config: HardhatUserConfig = {
     }
   },
   networks: {
+    mainnet: {
+      url: process.env.ETHEREUM_RPC!,
+      accounts: [process.env.PRIVATE_KEY!]
+    },
+    avalanche: {
+      url: process.env.AVALANCHE_RPC!,
+      accounts: [process.env.PRIVATE_KEY!]
+    },
     polygon: {
       url: process.env.POLYGON_RPC!,
       accounts: [process.env.PRIVATE_KEY!]
@@ -27,9 +35,10 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: {
-        mainnet: process.env.ETHERSCAN_ETHERUM_API_KEY!,
+        mainnet: process.env.ETHERSCAN_ETHEREUM_API_KEY!,
         goerli: process.env.ETHERSCAN_GOERLI_API_KEY!,
         polygon: process.env.ETHERSCAN_POLYGON_API_KEY!,
+        avalanche: process.env.ETHERSCAN_AVALANCHE_API_KEY!,
     }
   }
 };

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.21;
+pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -17,9 +17,12 @@ interface IToken is IERC20 {
 
 contract Wallet is AccessControlUpgradeable {
     // Define constants for various roles using the keccak256 hash of the role names.
-    bytes32 public constant USER_ROLE = keccak256("USER_ROLE"); // Role identifier for users.
-    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE"); // Role identifier for minters.
-    
+    bytes32 public constant BENEFICIARY_ROLE = keccak256("BENEFICIARY_ROLE");
+    bytes32 public constant BENEFICIARY_LIMIT_ROLE = keccak256("BENEFICIARY_LIMIT_ROLE");
+    bytes32 public constant LIMIT_ROLE = keccak256("LIMIT_ROLE");
+    bytes32 public constant MINT_ROLE = keccak256("MINT_ROLE");
+    bytes32 public constant TRANSFER_ROLE = keccak256("TRANSFER_ROLE");
+        
     IToken public token; // Reference to the token contract.
     Limiter private limiter; // Limits the amount of transfers possible within a given timeframe.
     Beneficiaries private beneficiaries; // Keeps track of beneficiaries allowed by this contract.
@@ -38,13 +41,13 @@ contract Wallet is AccessControlUpgradeable {
 
     /**
      * @dev Emitted when the 24-hour transfer limit of beneficiary with address `address`
-     * is temporarilly decreased by `limitDecrease`.
+     * is temporarily decreased by `limitDecrease`.
      */
     event BeneficiaryLimitTemporarilyDecreased(address beneficiary, uint limitDecrease);
 
     /**
      * @dev Emitted when the 24-hour transfer limit of beneficiary with address `address`
-     * is temporarilly increased by `limitIncrease`.
+     * is temporarily increased by `limitIncrease`.
      */
     event BeneficiaryLimitTemporarilyIncreased(address beneficiary, uint limitIncrease);
 
@@ -59,12 +62,12 @@ contract Wallet is AccessControlUpgradeable {
     event LimitChanged(uint limit);
 
     /**
-     * @dev Emitted when the 24-hour transfer limit is temporarilly decreased by `limitDecrease`.
+     * @dev Emitted when the 24-hour transfer limit is temporarily decreased by `limitDecrease`.
      */
     event LimitTemporarilyDecreased(uint limitDecrease);
 
     /**
-     * @dev Emitted when the 24-hour transfer limit is temporarilly increased by `limitIncrease`.
+     * @dev Emitted when the 24-hour transfer limit is temporarily increased by `limitIncrease`.
      */
     event LimitTemporarilyIncreased(uint limitIncrease);
 
@@ -99,12 +102,15 @@ contract Wallet is AccessControlUpgradeable {
      * @param _token Address of the token contract.
      */
     function initialize(address _admin, IToken _token) public initializer {
-        __AccessControl_init(); // Initializes the AccessControl module.
-        _grantRole(DEFAULT_ADMIN_ROLE, _admin); // Grants the admin the DEFAULT_ADMIN_ROLE.
-        _grantRole(MINTER_ROLE, _admin); // Grants the admin the MINTER_ROLE.
-        _grantRole(USER_ROLE, _admin); // Grants the admin the USER_ROLE.
-        token = _token; // Sets the token reference.
-        limiter.interval = 24 hours; // Sets the default interval for the limiter.
+        __AccessControl_init();
+        _grantRole(DEFAULT_ADMIN_ROLE, _admin); 
+        _grantRole(BENEFICIARY_ROLE, _admin);
+        _grantRole(BENEFICIARY_LIMIT_ROLE, _admin);
+        _grantRole(LIMIT_ROLE, _admin);
+        _grantRole(MINT_ROLE, _admin);
+        _grantRole(TRANSFER_ROLE, _admin);
+        token = _token;
+        limiter.interval = 24 hours;
     }
 
     /**
@@ -112,7 +118,7 @@ contract Wallet is AccessControlUpgradeable {
      * Can only be called by an account with the DEFAULT_ADMIN_ROLE.
      * @param _beneficiary Address of the beneficiary to be added.
      */
-    function addBeneficiary(address _beneficiary) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function addBeneficiary(address _beneficiary) public onlyRole(BENEFICIARY_ROLE) {
         addBeneficiary(_beneficiary, 0);
     }
 
@@ -122,7 +128,7 @@ contract Wallet is AccessControlUpgradeable {
      * @param _beneficiary Address of the beneficiary to be added.
      * @param _limit Limit value for the beneficiary.
      */
-    function addBeneficiary(address _beneficiary, uint _limit) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function addBeneficiary(address _beneficiary, uint _limit) public onlyRole(BENEFICIARY_ROLE) {
         addBeneficiary(_beneficiary, _limit, 24 hours);
     }
 
@@ -133,7 +139,7 @@ contract Wallet is AccessControlUpgradeable {
      * @param _limit Limit value for the beneficiary.
      * @param _cooldown Cooldown period for the beneficiary.
      */
-    function addBeneficiary(address _beneficiary, uint _limit, uint _cooldown) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function addBeneficiary(address _beneficiary, uint _limit, uint _cooldown) public onlyRole(BENEFICIARY_ROLE) {
         beneficiaries.addBeneficiary(_beneficiary, 24 hours, _limit, _cooldown);
         emit BeneficiaryAdded(_beneficiary, _limit, _cooldown);
     }
@@ -207,12 +213,21 @@ contract Wallet is AccessControlUpgradeable {
     }
 
     /**
+     * @dev Removes a beneficiary from the list of whitelisted beneficiaries.
+     * @param _beneficiary Address of the beneficiary to be removed.
+     */
+    function removeBeneficiary(address _beneficiary) public onlyRole(BENEFICIARY_ROLE) {
+        beneficiaries.removeBeneficiary(_beneficiary);
+        emit BeneficiaryRemoved(_beneficiary);
+    }
+
+    /**
      * @dev Sets the 24-hour transfer limit for a specific beneficiary.
      * Can only be called by an account with the DEFAULT_ADMIN_ROLE.
      * @param _beneficiary Address of the beneficiary.
      * @param _limit The limit value to be set for the beneficiary.
      */
-    function setBeneficiaryLimit(address _beneficiary, uint _limit) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setBeneficiaryLimit(address _beneficiary, uint _limit) public onlyRole(BENEFICIARY_LIMIT_ROLE) {
         beneficiaries.setBeneficiaryLimit(_beneficiary, _limit);
         emit BeneficiaryLimitChanged(_beneficiary, _limit);
     }
@@ -222,7 +237,7 @@ contract Wallet is AccessControlUpgradeable {
      * Can only be called by an account with the DEFAULT_ADMIN_ROLE.
      * @param _limit The limit value to be set.
      */
-    function setLimit(uint _limit) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setLimit(uint _limit) public onlyRole(LIMIT_ROLE) {
         limiter.limit = _limit;
         emit LimitChanged(_limit);
     }
@@ -236,7 +251,7 @@ contract Wallet is AccessControlUpgradeable {
     function temporarilyIncreaseBeneficiaryLimit(
         address _beneficiary,
         uint _limitIncrease
-    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) public onlyRole(BENEFICIARY_LIMIT_ROLE) {
         beneficiaries.temporarilyIncreaseBeneficiaryLimit(_beneficiary, _limitIncrease);
         emit BeneficiaryLimitTemporarilyIncreased(_beneficiary, _limitIncrease);
     }
@@ -250,7 +265,7 @@ contract Wallet is AccessControlUpgradeable {
     function temporarilyDecreaseBeneficiaryLimit(
         address _beneficiary,
         uint _limitDecrease
-    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) public onlyRole(BENEFICIARY_LIMIT_ROLE) {
         beneficiaries.temporarilyDecreaseBeneficiaryLimit(_beneficiary, _limitDecrease);
         emit BeneficiaryLimitTemporarilyDecreased(_beneficiary, _limitDecrease);
     }
@@ -260,7 +275,7 @@ contract Wallet is AccessControlUpgradeable {
      * Can only be called by an account with the DEFAULT_ADMIN_ROLE.
      * @param _limitIncrease Amount by which the limit should be increased.
      */
-    function temporarilyIncreaseLimit(uint _limitIncrease) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function temporarilyIncreaseLimit(uint _limitIncrease) public onlyRole(LIMIT_ROLE) {
         limiter.temporarilyIncreaseLimit(_limitIncrease);
         emit LimitTemporarilyIncreased(_limitIncrease);
     }
@@ -270,7 +285,7 @@ contract Wallet is AccessControlUpgradeable {
      * Can only be called by an account with the DEFAULT_ADMIN_ROLE.
      * @param _limitDecrease Amount by which the limit should be decreased.
      */
-    function temporarilyDecreaseLimit(uint _limitDecrease) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function temporarilyDecreaseLimit(uint _limitDecrease) public onlyRole(LIMIT_ROLE) {
         limiter.temporarilyDecreaseLimit(_limitDecrease);
         emit LimitTemporarilyDecreased(_limitDecrease);
     }
@@ -281,7 +296,7 @@ contract Wallet is AccessControlUpgradeable {
      * @param _beneficiary Address of the beneficiary to receive the tokens.
      * @param _amount Amount of tokens to be transferred.
      */
-    function transfer(address _beneficiary, uint _amount) public onlyRole(USER_ROLE) {
+    function transfer(address _beneficiary, uint _amount) public onlyRole(TRANSFER_ROLE) {
         limiter.addTransfer(_amount, "Limit exceeded");
         beneficiaries.addBeneficiaryTransfer(_beneficiary, _amount);
         token.transfer(_beneficiary, _amount);
@@ -301,20 +316,20 @@ contract Wallet is AccessControlUpgradeable {
 
     /**
      * @dev Mints tokens to the wallet. 
-     * Can only be called by an account with the MINTER_ROLE.
+     * Can only be called by an account with the MINT_ROLE.
      * @param _amount Amount of tokens to be minted.
      */
-    function mint(uint _amount) public onlyRole(MINTER_ROLE) {
+    function mint(uint _amount) public onlyRole(MINT_ROLE) {
         token.mint(_amount);
         emit Minted(_amount);
     }
 
     /**
      * @dev Burns tokens from the wallet. 
-     * Can only be called by an account with the MINTER_ROLE.
+     * Can only be called by an account with the MINT_ROLE.
      * @param _amount Amount of tokens to be minted.
      */
-    function burn(uint _amount) public onlyRole(MINTER_ROLE) {
+    function burn(uint _amount) public onlyRole(MINT_ROLE) {
         token.burn(_amount);
         emit Burned(_amount);
     }

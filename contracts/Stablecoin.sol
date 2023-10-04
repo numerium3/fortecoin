@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.21;
+pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
@@ -77,9 +77,9 @@ contract Stablecoin is
 {
     
     // Define constants for various roles using the keccak256 hash of the role names.
-    bytes32 public constant BLACKLISTER_ROLE = keccak256("BLACKLISTER_ROLE");
-    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
-    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    bytes32 public constant BLACKLIST_ROLE = keccak256("BLACKLIST_ROLE");
+    bytes32 public constant PAUSE_ROLE = keccak256("PAUSE_ROLE");
+    bytes32 public constant MINT_ROLE = keccak256("MINT_ROLE");
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -98,9 +98,9 @@ contract Stablecoin is
         __ERC20Permit_init(name);
         __ERC20Blacklistable_init();
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
-        _grantRole(BLACKLISTER_ROLE, _admin);
-        _grantRole(PAUSER_ROLE, _admin);
-        _grantRole(MINTER_ROLE, _admin);
+        _grantRole(BLACKLIST_ROLE, _admin);
+        _grantRole(PAUSE_ROLE, _admin);
+        _grantRole(MINT_ROLE, _admin);
     }
 
     /**
@@ -127,73 +127,73 @@ contract Stablecoin is
 
     /**
      * @dev Pauses all token transfers.
-     * Can only be called by an account with the PAUSER_ROLE.
+     * Can only be called by an account with the PAUSE_ROLE.
      */
-    function pause() public onlyRole(PAUSER_ROLE) {
+    function pause() public onlyRole(PAUSE_ROLE) {
         _pause();
     }
 
     /**
      * @dev Resumes all token transfers.
-     * Can only be called by an account with the PAUSER_ROLE.
+     * Can only be called by an account with the PAUSE_ROLE.
      */
-    function unpause() public onlyRole(PAUSER_ROLE) {
+    function unpause() public onlyRole(PAUSE_ROLE) {
         _unpause();
     }
 
     /**
      * @dev Blacklists an account, preventing it from participating in token transfers.
-     * Can only be called by an account with the BLACKLISTER_ROLE.
+     * Can only be called by an account with the BLACKLIST_ROLE.
      * @param _account Address to be blacklisted.
      */
-    function blacklist(address _account) public onlyRole(BLACKLISTER_ROLE) {
+    function blacklist(address _account) public onlyRole(BLACKLIST_ROLE) {
         _blacklist(_account);
     }
 
     /**
      * @dev Removes an account from the blacklist.
-     * Can only be called by an account with the BLACKLISTER_ROLE.
+     * Can only be called by an account with the BLACKLIST_ROLE.
      * @param _account Address to be removed from the blacklist.
      */
-    function unBlacklist(address _account) public onlyRole(BLACKLISTER_ROLE) {
+    function unBlacklist(address _account) public onlyRole(BLACKLIST_ROLE) {
         _unBlacklist(_account);
     }
 
     /**
      * @dev Mints tokens to the caller's address.
-     * Can only be called by an account with the MINTER_ROLE.
+     * Can only be called by an account with the MINT_ROLE.
      * @param _amount Amount of tokens to mint.
      */
-    function mint(uint256 _amount) public onlyRole(MINTER_ROLE) {
+    function mint(uint256 _amount) public onlyRole(MINT_ROLE) {
         _mint(_msgSender(), _amount);
     }
 
     /**
      * @dev Mints tokens to a specified address.
-     * Can only be called by an account with the MINTER_ROLE.
+     * Can only be called by an account with the MINT_ROLE.
      * @param _account Address to mint token tos.
      * @param _amount Amount of tokens to mint.
      */
-    function mint(address _account, uint256 _amount) public onlyRole(MINTER_ROLE) {
+    function mint(address _account, uint256 _amount) public onlyRole(MINT_ROLE) {
         _mint(_account, _amount);
     }
 
     /**
      * @dev Burns tokens from the caller's address.
-     * Can only be called by an account with the MINTER_ROLE.
+     * Can only be called by an account with the MINT_ROLE.
      * @param _amount Amount of tokens to burn.
      */
-    function burn(uint256 _amount) public onlyRole(MINTER_ROLE) {
+    function burn(uint256 _amount) public onlyRole(MINT_ROLE) {
         _burn(_msgSender(), _amount);
     }
 
     /**
      * @dev Burns tokens from a specified address, assuming they have the required allowance.
-     * Can only be called by an account with the MINTER_ROLE.
+     * Can only be called by an account with the MINT_ROLE.
      * @param _account Address to burn tokens from.
      * @param _amount Amount of tokens to burn.
      */
-    function burn(address _account, uint256 _amount) public onlyRole(MINTER_ROLE) {
+    function burn(address _account, uint256 _amount) public onlyRole(MINT_ROLE) {
         _spendAllowance(_account, _msgSender(), _amount);
         _burn(_account, _amount);
     }

@@ -23,10 +23,10 @@ describe("Wallet", function () {
     const WalletProxy = await ethers.getContractFactory("WalletProxy");
     const walletProxy = await Wallet.attach(await WalletProxy.deploy(wallet, proxyAdmin, admin, stablecoinProxy)) as Wallet;
     
-    await walletProxy.connect(admin).grantRole(await walletProxy.USER_ROLE(), user);
-    await walletProxy.connect(admin).grantRole(await walletProxy.MINTER_ROLE(), minter);
+    await walletProxy.connect(admin).grantRole(await walletProxy.TRANSFER_ROLE(), user);
+    await walletProxy.connect(admin).grantRole(await walletProxy.MINT_ROLE(), minter);
     await stablecoinProxy.connect(admin)["mint(address,uint256)"](walletProxy, 10000);
-    await stablecoinProxy.connect(admin).grantRole(await stablecoinProxy.MINTER_ROLE(), walletProxy);
+    await stablecoinProxy.connect(admin).grantRole(await stablecoinProxy.MINT_ROLE(), walletProxy);
     
     return { wallet, walletProxy, stablecoin, stablecoinProxy, deployer, admin, minter, user, beneficiary: beneficiary1, beneficiary1, beneficiary2, other };
   }
@@ -34,8 +34,8 @@ describe("Wallet", function () {
   it('non-granted minter cannot mint or burn', async function () {
     const { deployer, walletProxy, user, other } = await initialize();
     for (const account of [user, other, deployer]) {
-      await expect(walletProxy.connect(account).mint(1000)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6`);
-      await expect(walletProxy.connect(account).burn(1000)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6`);
+      await expect(walletProxy.connect(account).mint(1000)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0x154c00819833dac601ee5ddded6fda79d9d8b506b911b3dbd54cdb95fe6c3686`);
+      await expect(walletProxy.connect(account).burn(1000)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0x154c00819833dac601ee5ddded6fda79d9d8b506b911b3dbd54cdb95fe6c3686`);
     }
   });
 
@@ -51,15 +51,15 @@ describe("Wallet", function () {
     const { deployer, walletProxy, minter, beneficiary1, beneficiary2, other } = await initialize();
     for (const account of [minter, other, deployer]) {
       for (const beneficiary of [other, beneficiary1, beneficiary2]) {
-        await expect(walletProxy.connect(account)["transfer(address,uint256)"](beneficiary, 1000)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0x14823911f2da1b49f045a0929a60b8c1f2a7fc8c06c7284ca3e8ab4e193a08c8`);
+        await expect(walletProxy.connect(account)["transfer(address,uint256)"](beneficiary, 1000)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0x8502233096d909befbda0999bb8ea2f3a6be3c138b9fbf003752a4c8bce86f6c`);
       }
     }
   });
 
-  it('non-admin cannot grant user role', async function () {
+  it('non-admin cannot grant transfer role', async function () {
     const { deployer, user, walletProxy, other } = await initialize();
     for (const account of [deployer, user, other]) {
-      await expect(walletProxy.connect(account).grantRole(await walletProxy.USER_ROLE(), account)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0x0000000000000000000000000000000000000000000000000000000000000000`);
+      await expect(walletProxy.connect(account).grantRole(await walletProxy.TRANSFER_ROLE(), account)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0x0000000000000000000000000000000000000000000000000000000000000000`);
     }
   });
 
@@ -75,7 +75,7 @@ describe("Wallet", function () {
   it('non-admin cannot set limit', async function () {
     const { deployer, user, walletProxy, other } = await initialize();
     for (const account of [deployer, user, other]) {
-      await expect(walletProxy.connect(account).setLimit(6000)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0x0000000000000000000000000000000000000000000000000000000000000000`);
+      await expect(walletProxy.connect(account).setLimit(6000)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0x2f619476c2bfb911943ba3beab8e9180f8e9415abd4ddb126a14f02a517aa5b5`);
     }
   });
 
@@ -87,7 +87,6 @@ describe("Wallet", function () {
 
   it('cannot transfer to non-whitelisted beneficiary', async function () {
     const { admin, user, walletProxy, beneficiary1, beneficiary2, other } = await initialize();
-    walletProxy.connect(admin).grantRole(await walletProxy.USER_ROLE(), user);
     await walletProxy.connect(admin).setLimit(6000);
     for (const beneficiary of [beneficiary1, beneficiary2, other]) {
       await expect(walletProxy.connect(user)["transfer(address,uint256)"](beneficiary, 1000)).to.be.revertedWith('Beneficiary does not exist');
@@ -98,9 +97,9 @@ describe("Wallet", function () {
     const { deployer, user, walletProxy, beneficiary1, beneficiary2, other } = await initialize();
     for (const account of [deployer, user, other]) {
       for (const beneficiary of [beneficiary1, beneficiary2]) {
-        await expect(walletProxy.connect(account)["addBeneficiary(address)"](beneficiary)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0x0000000000000000000000000000000000000000000000000000000000000000`);
-        await expect(walletProxy.connect(account)["addBeneficiary(address,uint256)"](beneficiary, 1000)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0x0000000000000000000000000000000000000000000000000000000000000000`);
-        await expect(walletProxy.connect(account)["addBeneficiary(address,uint256,uint256)"](beneficiary, 1000, 1000)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0x0000000000000000000000000000000000000000000000000000000000000000`);
+        await expect(walletProxy.connect(account)["addBeneficiary(address)"](beneficiary)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0x3ba3d5ae8cb964013f658648156b28b2b473641d4c80ed56092d0fa57f9eef2e`);
+        await expect(walletProxy.connect(account)["addBeneficiary(address,uint256)"](beneficiary, 1000)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0x3ba3d5ae8cb964013f658648156b28b2b473641d4c80ed56092d0fa57f9eef2e`);
+        await expect(walletProxy.connect(account)["addBeneficiary(address,uint256,uint256)"](beneficiary, 1000, 1000)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0x3ba3d5ae8cb964013f658648156b28b2b473641d4c80ed56092d0fa57f9eef2e`);
       }
     }
   });
@@ -128,7 +127,6 @@ describe("Wallet", function () {
 
   it('cannot transfer before cooldown', async function () {
     const { admin, user, walletProxy, beneficiary } = await initialize();
-    walletProxy.connect(admin).grantRole(await walletProxy.USER_ROLE(), user);
     await walletProxy.connect(admin).setLimit(6000);
     await walletProxy.connect(admin)["addBeneficiary(address)"](beneficiary);
     await expect(walletProxy.connect(user)["transfer(address,uint256)"](beneficiary, 1000)).to.be.revertedWith('Beneficiary is not enabled');
@@ -138,7 +136,6 @@ describe("Wallet", function () {
 
   it('cannot transfer above daily beneficiary limit', async function () {
     const { admin, user, walletProxy, beneficiary } = await initialize();
-    walletProxy.connect(admin).grantRole(await walletProxy.USER_ROLE(), user);
     await walletProxy.connect(admin).setLimit(6000);
     await walletProxy.connect(admin)["addBeneficiary(address)"](beneficiary);
     await time.increase(3600 * 24);
@@ -149,7 +146,7 @@ describe("Wallet", function () {
     const { deployer, user, walletProxy, beneficiary1, beneficiary2, other } = await initialize();
     for (const account of [deployer, user, other]) {
       for (const beneficiary of [beneficiary1, beneficiary2]) {
-        await expect(walletProxy.connect(account).setBeneficiaryLimit(beneficiary, 2000)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0x0000000000000000000000000000000000000000000000000000000000000000`);
+        await expect(walletProxy.connect(account).setBeneficiaryLimit(beneficiary, 2000)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0x94696073f4b1cfc25212d9f5f2d64a2f7323955ab6eded2c8aa4965446edacbf`);
       }
     }
   });
