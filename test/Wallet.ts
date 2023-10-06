@@ -97,9 +97,9 @@ describe("Wallet", function () {
     const { deployer, user, walletProxy, beneficiary1, beneficiary2, other } = await initialize();
     for (const account of [deployer, user, other]) {
       for (const beneficiary of [beneficiary1, beneficiary2]) {
-        await expect(walletProxy.connect(account)["addBeneficiary(address)"](beneficiary)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0x3ba3d5ae8cb964013f658648156b28b2b473641d4c80ed56092d0fa57f9eef2e`);
-        await expect(walletProxy.connect(account)["addBeneficiary(address,uint256)"](beneficiary, 1000)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0x3ba3d5ae8cb964013f658648156b28b2b473641d4c80ed56092d0fa57f9eef2e`);
-        await expect(walletProxy.connect(account)["addBeneficiary(address,uint256,uint256)"](beneficiary, 1000, 1000)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0x3ba3d5ae8cb964013f658648156b28b2b473641d4c80ed56092d0fa57f9eef2e`);
+        await expect(walletProxy.connect(account)["addBeneficiary(address)"](beneficiary)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0xc8a41221bcd7fcf2c225f5a9265e1d4d39949d89197159d59e5f4b87b62c419e`);
+        await expect(walletProxy.connect(account)["addBeneficiary(address,uint256)"](beneficiary, 1000)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0xc8a41221bcd7fcf2c225f5a9265e1d4d39949d89197159d59e5f4b87b62c419e`);
+        await expect(walletProxy.connect(account)["addBeneficiary(address,uint256,uint256)"](beneficiary, 1000, 1000)).to.be.revertedWith(`AccessControl: account ${account.address.toLowerCase()} is missing role 0xc8a41221bcd7fcf2c225f5a9265e1d4d39949d89197159d59e5f4b87b62c419e`);
       }
     }
   });

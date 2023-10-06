@@ -31,6 +31,14 @@ const config: HardhatUserConfig = {
     goerli: {
       url: process.env.GOERLI_RPC!,
       accounts: [process.env.PRIVATE_KEY!]
+    },
+    arbitrumOne: {
+      url: process.env.ARBITRUM_RPC!,
+      accounts: [process.env.PRIVATE_KEY!]
+    },
+    optimisticEthereum: {
+      url: process.env.OPTIMISM_RPC!,
+      accounts: [process.env.PRIVATE_KEY!]
     }
   },
   etherscan: {
@@ -39,6 +47,8 @@ const config: HardhatUserConfig = {
         goerli: process.env.ETHERSCAN_GOERLI_API_KEY!,
         polygon: process.env.ETHERSCAN_POLYGON_API_KEY!,
         avalanche: process.env.ETHERSCAN_AVALANCHE_API_KEY!,
+        arbitrumOne: process.env.ETHERSCAN_ARBITRUM_API_KEY!,
+        optimisticEthereum: process.env.ETHERSCAN_OPTIMISM_API_KEY!,
     }
   }
 };

@@ -60,15 +60,15 @@ const factoryAddress = "0x4e59b44847b379578588920ca78fbf26c0b4956c";
 const multicallAddress = '0xcA11bde05977b3631167028862bE2a173976CA11';
 const safeProxyFactoryAddress = '0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2';
 
-function getPayload({bytecode, factoryAddress, name, path, salt, constructorArguments, openzepplinContract}: {bytecode?: string, factoryAddress: string, name: string, path?: string, salt: bigint, constructorArguments?: {types: any[], values: Address[]}, openzepplinContract?: boolean}) {
+function getPayload({bytecode, factoryAddress, name, path, salt, constructorArguments, openzepplinContract}: {bytecode?: string, factoryAddress: string, name: string, path?: string, salt: bigint | string, constructorArguments?: {types: any[], values: Address[]}, openzepplinContract?: boolean}) {
   if (bytecode === undefined) {
     const { bytecode: bytecode2 } = require(`../artifacts/contracts/${path !== undefined ? path : ''}${name}.sol/${name}.json`);
     bytecode = bytecode2;
   }
   const initCode = bytecode + new ethers.AbiCoder().encode(constructorArguments?.types ?? [], constructorArguments?.values ?? []).slice(2);
-  const saltHex = '0x' + salt.toString(16).padStart(64, "0");
-  const data = saltHex + initCode.slice(2);
+  const saltHex = typeof salt === 'bigint' ? '0x' + salt.toString(16).padStart(64, "0") : salt;
   const address = ethers.getCreate2Address(factoryAddress, saltHex, ethers.keccak256(initCode));
+  const data = saltHex + initCode.slice(2);
   console.log(`Deploying ${name} at ${address}`);
   return { name, path, to: factoryAddress, data, address, constructorArguments, openzepplinContract };
 }
@@ -76,6 +76,7 @@ function getPayload({bytecode, factoryAddress, name, path, salt, constructorArgu
 async function sendTransaction({to, data}: {to: string, data: string}) {
   const [account] = await ethers.getSigners();
   const tx = await account.sendTransaction({to, data});
+  console.log(tx);
   console.log('Submitted transaction', tx.hash);
   await tx.wait();
   console.log('Processed transaction', tx.hash);
@@ -105,14 +106,14 @@ function getSafeProxyPayload({salt, singleton, owners, threshold, fallbackHandle
   if (fallbackHandler === undefined) {
     fallbackHandler = '0xf48f2b2d2a534e402487b3ee7c18c33aec0fe5e4';
   }
-  const bytecode = '0x608060405273ffffffffffffffffffffffffffffffffffffffff600054167fa619486e0000000000000000000000000000000000000000000000000000000060003514156050578060005260206000f35b3660008037600080366000845af43d6000803e60008114156070573d6000fd5b3d6000f3fea2646970667358221220d1429297349653a4918076d650332de1a1068c5f3e07c5c82360c277770b955264736f6c63430007060033';
-  const {address} = getPayload({factoryAddress: safeProxyFactoryAddress, path: 'safe/',  name: 'SafeProxy', salt, bytecode });
   const iface = new ethers.Interface([ "function setup(address[] calldata _owners, uint256 _threshold, address to, bytes calldata data, address fallbackHandler, address paymentToken, uint256 payment, address payable paymentReceiver)" ]);
   const initializerData = iface.encodeFunctionData("setup", [ owners, threshold, "0x0000000000000000000000000000000000000000", "0x", fallbackHandler, "0x0000000000000000000000000000000000000000", 0, "0x0000000000000000000000000000000000000000"]);
+  const bytecode =  '0x608060405234801561001057600080fd5b506040516101e63803806101e68339818101604052602081101561003357600080fd5b8101908080519060200190929190505050600073ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff1614156100ca576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004018080602001828103825260228152602001806101c46022913960400191505060405180910390fd5b806000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055505060ab806101196000396000f3fe608060405273ffffffffffffffffffffffffffffffffffffffff600054167fa619486e0000000000000000000000000000000000000000000000000000000060003514156050578060005260206000f35b3660008037600080366000845af43d6000803e60008114156070573d6000fd5b3d6000f3fea264697066735822122013680cc3f65d756878131fa4798651c66816c274ef079dd4a54cb31fec45406864736f6c63430007060033496e76616c69642073696e676c65746f6e20616464726573732070726f7669646564';
+  const salt2 = ethers.keccak256(new ethers.AbiCoder().encode(["bytes32", "uint256"], [ethers.keccak256(initializerData), salt]));
+  const {address} = getPayload({factoryAddress: safeProxyFactoryAddress, path: 'safe/',  name: 'SafeProxy', salt: salt2, bytecode, constructorArguments: {types: ["address"], values: [singleton] } });
   const iface2 = new ethers.Interface([ "function createProxyWithNonce(address _singleton, bytes initializer, uint256 saltNonce)" ]);
   const data = iface2.encodeFunctionData("createProxyWithNonce", [ singleton, initializerData, salt ]);
-  return { name: 'SafeProxy', path: "safe/", to: safeProxyFactoryAddress, data, address };
-
+  return { name: 'SafeProxy', path: "safe/", to: safeProxyFactoryAddress, data, address, shouldVerify: false };
 }
 
 function getProxyAdminPayload({salt, adminAddress}: {salt: bigint, adminAddress: string}) {
@@ -154,39 +155,38 @@ async function deployContracts({salt, adminAddress}: {salt: bigint, adminAddress
   await deployPayloads([proxyAdmin, stablecoin, stablecoinProxy, wallet, walletProxy]);
 }
 
-async function main() {
-  //const adminAddress = '0xCb9DE6baeD7357A768E81a82EF833f5628BEdb04'; //Goerli safe;
-  //const salt = 0xf9a33bc82ac05bb7f57b22b6b7889496cee0cac4e80a973b33d02f357af90180n;
-  const salt = 0x18a92cc6c74n;
-  //deployContracts({salt, adminAddress});
-  //deployContract({name: 'SafeProxyFactory', path: 'safe/', salt});
-  const payload = getSafeProxyPayload({ salt, owners: ['0xab183ef8530299e32cc296098b0ad0a25a17e27e'], threshold: 1 });
-  console.log(payload);
+async function deployMintSafe() {
+  const salt = 0xe48cd424f23403e549460c179346718ad676d86358578ea9cbe4be97347efaa2n;
+  const payload = getSafeProxyPayload({ salt, owners: ['0xa39c07e5c15a065ceA1E51b50278fF57094D11e8'], threshold: 1 });
   await deployPayload(payload);
 }
 
-async function main2() {
-
-  //const admin = '0xCb9DE6baeD7357A768E81a82EF833f5628BEdb04'; //Goerli safe;
-  const admin = '0xee5C39ed81E49A157A9930Fc5457785198C54adf'; //Matic safe;
-
-  const salt = 0x7b859196d21eeb3eb5ca7c450106871b956d4392ea0c53e72599c4f02c17f04an;
-
-  const proxyAdminAddress = await deployContract({name: 'OwnedProxyAdmin', salt, constructorArguments: {types: ["address"], values: [admin] }});
-
-  const stablecoinAddress = await deployContract({name: 'Stablecoin', salt, constructorArguments: {types: [], values: []} });
-  const stablecoinProxyAddress = await deployContract({name: 'StablecoinProxy', salt, constructorArguments: {types: ["address", "address", "address"], values: [stablecoinAddress, proxyAdminAddress, admin]} });
-
-  const walletAddress = await deployContract({name: 'Wallet', salt, constructorArguments: {types: [], values: []} });
-  const walletProxyAddress = await deployContract({name: 'WalletProxy', salt, constructorArguments: {types: ["address", "address", "address", "address"], values: [walletAddress, proxyAdminAddress, admin, stablecoinProxyAddress]} });
-
-  console.log(`OwnedProxyAdmin deployed to ${proxyAdminAddress}`);
-  console.log(`Stablecoin deployed to ${stablecoinAddress}`);
-  console.log(`StablecoinProxy deployed to ${stablecoinProxyAddress}`);
-  console.log(`Wallet deployed to ${walletAddress}`);
-  console.log(`WalletProxy deployed to ${walletProxyAddress}`);
-
+async function deployAdminSafe() {
+  const salt = 0x9c287a8d2e657e5dbebf3c42ae51a2676a5ed6e0245a749efdea789e9126382dn;
+  const payload = getSafeProxyPayload({ salt, owners: ['0xa39c07e5c15a065ceA1E51b50278fF57094D11e8'], threshold: 1 });
+  await deployPayload(payload);
 }
+
+async function deployAllContractsSimultaneously() {
+  const adminAddress = '0x6929Fd915b0755EfDC255eA841B68a263A362C5A';
+  const salt = 0xbf023d64abfe3c8f11823b1a6c728fece24a4e7ab2eb2a46464f491b03ed1801n;
+  await deployContracts({salt, adminAddress});
+}
+
+async function deployAllContracts() {
+  const adminAddress = '0x6929Fd915b0755EfDC255eA841B68a263A362C5A';
+  const salt = 0x7b859196d21eeb3eb5ca7c450106871b956d4392ea0c53e72599c4f02c17f04an;
+  const proxyAdminAddress = await deployContract({name: 'OwnedProxyAdmin', salt, constructorArguments: {types: ["address"], values: [adminAddress] }});
+  const stablecoinAddress = await deployContract({name: 'Stablecoin', salt, constructorArguments: {types: [], values: []} });
+  const stablecoinProxyAddress = await deployContract({name: 'StablecoinProxy', salt, constructorArguments: {types: ["address", "address", "address"], values: [stablecoinAddress, proxyAdminAddress, adminAddress]} });
+  const walletAddress = await deployContract({name: 'Wallet', salt, constructorArguments: {types: [], values: []} });
+  const walletProxyAddress = await deployContract({name: 'WalletProxy', salt, constructorArguments: {types: ["address", "address", "address", "address"], values: [walletAddress, proxyAdminAddress, adminAddress, stablecoinProxyAddress]} });
+}
+
+async function main() {
+  await deployAllContractsSimultaneously()
+}
+
 
 main().catch((error) => {
   console.error(error);
